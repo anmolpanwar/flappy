@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CSS Flappy</title>
+<style>
+  :root{
+    --w: 420px;
+    --h: 640px;
+    --ground-h: 100px;
+
+    --sky1:#7fd3ff;   /* top sky */
+    --sky2:#cfeeff;   /* bottom sky */
+    --cloud:#ffffffcc;
+    --pipe1:#3bb34a;  /* pipe body light */
+    --pipe2:#2e8d3b;  /* pipe body dark */
+    --pipe-lip:#2a7e35;
+    --ground1:#caa66a;/* sand light */
+    --ground2:#b58a4e;/* sand dark  */
+
+    --ui:#f8fafc;
+    --shadow:0 14px 40px rgba(0,0,0,.35);
+  }
+
+  /* Layout */
+  html,body{height:100%;margin:0}
+  body{
+    background:#0b1320;
+    display:flex; align-items:center; justify-content:center;
+    font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+    color:var(--ui);
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  }
+
+  /* Game stage */
+  .stage{
+    position:relative;
+    width:var(--w); height:var(--h);
+    overflow:hidden; border-radius:18px;
+    box-shadow:var(--shadow);
+    user-select:none;
+    background: linear-gradient(var(--sky1), var(--sky2));
+    border:1px solid #00000022;
+  }
+
+  /* Sky clouds made with gradients (no images) */
+  .clouds, .clouds::before, .clouds::after{
+    position:absolute; inset:0; content:"";
+    background-repeat:repeat-x;
+    animation:clouds 50s linear infinite;
+    pointer-events:none;
+  }
+  .clouds{
+    background-image:
+      radial-gradient(ellipse 50px 22px at 10% 20%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 60px 26px at 35% 30%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 55px 24px at 65% 22%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 70px 30px at 90% 28%, var(--cloud) 0 98%, transparent 100%);
+    background-size: 600px 200px;
+  }
+  .clouds::before{
+    background-image:
+      radial-gradient(ellipse 40px 18px at 15% 60%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 50px 20px at 55% 62%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 44px 18px at 85% 58%, var(--cloud) 0 98%, transparent 100%);
+    background-size: 520px 220px;
+    animation-duration: 70s;
+    opacity:.8;
+  }
+  .clouds::after{
+    background-image:
+      radial-gradient(ellipse 36px 16px at 25% 84%, var(--cloud) 0 98%, transparent 100%),
+      radial-gradient(ellipse 50px 20px at 75% 80%, var(--cloud) 0 98%, transparent 100%);
+    background-size: 460px 240px;
+    animation-duration: 90s;
+    opacity:.6;
+  }
+  @keyframes clouds {
+    from{ background-position: 0 0 }
+    to  { background-position: -600px 0 }
+  }
+
+  /* Ground: CSS stripes + slight parallax moved via JS */
+  .ground{
+    position:absolute; left:0; right:0; bottom:0; height:var(--ground-h);
+    background:
+      linear-gradient(#00000020,#0000) 0 0/100% 6px no-repeat,
+      repeating-linear-gradient(
+        -10deg,
+        var(--ground1) 0 26px,
+        var(--ground2) 26px 52px
+      );
+    border-top:3px solid #8a6a3a;
+    filter:saturate(1.1) contrast(1.02);
+  }
+
+  /* Pipes (CSS only) */
+  .pipes{ position:absolute; inset:0; }
+  .pair{ position:absolute; left:0; top:0; width:1px; height:100%; will-change:transform; }
+  .pipe{
+    position:absolute; left:0; width:70px;
+    background: linear-gradient(90deg, var(--pipe2), var(--pipe1) 35%, var(--pipe2) 70%);
+    border:2px solid var(--pipe-lip);
+    border-radius:6px;
+    box-shadow: inset -6px 0 0 rgba(0,0,0,.07);
+  }
+  .pipe::after{ /* lip */
+    content:""; position:absolute; left:-2px; right:-2px; height:16px;
+    background: linear-gradient(90deg, #206a2c, #2fa241 35%, #206a2c 70%);
+    border:2px solid var(--pipe-lip);
+    border-radius:6px;
+  }
+  .pipe.top{ top:0 }
+  .pipe.top::after{ bottom:-2px }
+  .pipe.bottom{ bottom:var(--ground-h) }
+  .pipe.bottom::after{ top:-2px }
+
+  /* Bird (CSS only) */
+  .bird{
+    --x:120px; --y:280px;
+    position:absolute; left:0; top:0;
+    width:38px; height:28px; transform:translate(var(--x), var(--y));
+    transform-origin:center center;
+    will-change:transform;
+  }
+  .bird .body{
+    position:absolute; inset:0;
+    border-radius:60% 55% 60% 55% / 60% 60% 55% 55%;
+    background:
+      radial-gradient(circle at 30% 30%, #fff6 0 4px, #0000 5px),
+      radial-gradient(circle at 40% 80%, #0003 0 14px, #0000 15px),
+      radial-gradient(circle at 25% 70%, #00000015 0 18px, #0000 19px),
+      radial-gradient(circle at 55% 35%, #ffe073 0 26px, #ffce3a 27px, #eab335 40px);
+    box-shadow: inset -6px -4px 0 rgba(0,0,0,.10);
+  }
+  .bird .eye{
+    position:absolute; right:8px; top:7px; width:9px; height:9px;
+    background:#fff; border-radius:50%;
+    box-shadow: inset -2px -1px 0 rgba(0,0,0,.15);
+  }
+  .bird .eye::after{
+    content:""; position:absolute; left:3px; top:3px; width:4px; height:4px;
+    background:#222; border-radius:50%;
+  }
+  .bird .beak{
+    position:absolute; right:-8px; top:12px; width:14px; height:8px;
+    background:#f5a300; transform:skewX(-18deg) rotate(4deg);
+    border-radius:2px;
+    box-shadow: inset -2px -2px 0 rgba(0,0,0,.2);
+  }
+  .bird .wing{
+    position:absolute; left:6px; top:10px; width:18px; height:12px;
+    background: radial-gradient(circle at 60% 40%, #ffdb5f 0 12px, #f0c44a 13px);
+    border-radius:50% 50% 60% 60%;
+    transform-origin:50% 60%;
+    animation:flap .45s ease-in-out infinite;
+    filter:drop-shadow(0 1px 0 rgba(0,0,0,.2));
+  }
+  @keyframes flap{
+    0%,100%{ transform:rotate(10deg) translateY(0) }
+    50%    { transform:rotate(-18deg) translateY(2px)}
+  }
+
+  /* HUD */
+  .score{
+    position:absolute; top:12px; left:0; right:0; text-align:center;
+    font-weight:800; font-size:34px; text-shadow:0 2px 0 rgba(0,0,0,.35);
+    letter-spacing:1px;
+  }
+  .msg{
+    position:absolute; left:0; right:0; bottom:calc(var(--ground-h) + 18px);
+    text-align:center; font-weight:700; font-size:16px; opacity:.95;
+  }
+  .kbd{ display:inline-block; padding:2px 6px; border-radius:6px; background:#00000030; border:1px solid #ffffff33; }
+
+  /* Start / Game-over flashes */
+  .flash{ animation:flash .25s ease }
+  @keyframes flash{ from{opacity:0} to{opacity:1} }
+
+  /* Small screens: scale stage down */
+  @media (max-width:480px){
+    .stage{ transform: scale(.92); transform-origin:top center; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage" aria-label="Flappy game">
+    <div class="clouds"></div>
+    <div class="pipes" id="pipes"></div>
+
+    <div class="bird" id="bird" aria-hidden="true">
+      <div class="body"></div>
+      <div class="eye"></div>
+      <div class="wing"></div>
+      <div class="beak"></div>
+    </div>
+
+    <div class="score" id="score">0</div>
+    <div class="msg" id="msg">
+      Press <span class="kbd">Space</span> to flap · <span class="kbd">Enter</span> to start
+    </div>
+    <div class="ground" id="ground"></div>
+  </div>
+
+<script>
+(function(){
+  /* ---------- Tuning (px/ms etc.) ---------- */
+  const W = 420, H = 640, GROUND_H = 100;
+  const PIPE_W = 70, PIPE_GAP = 220;
+  const PIPE_SPEED = 0.20;   // px per ms (≈ 200 px/s)
+  const GRAVITY = 0.0022;    // px per ms^2
+  const JUMP_VY = -0.75;     // px per ms
+  const SPAWN_MS = 1500;
+
+  const State = { READY:0, PLAY:1, OVER:2 };
+  let state = State.READY;
+
+  /* ---------- DOM ---------- */
+  const stage = document.getElementById('stage');
+  const pipesLayer = document.getElementById('pipes');
+  const birdEl = document.getElementById('bird');
+  const groundEl = document.getElementById('ground');
+  const scoreEl = document.getElementById('score');
+  const msgEl = document.getElementById('msg');
+
+  /* ---------- Game vars ---------- */
+  let bird = { x:120, y:280, w:38, h:28, vy:0 };
+  let pipes = []; // {x, gapTop, passed:false, el, topEl, botEl}
+  let last = 0, accSpawn = 0, score = 0, worldX = 0;
+
+  function reset(){
+    state = State.READY;
+    // Clear pipes
+    pipes.forEach(p => p.el.remove());
+    pipes = [];
+    bird = { x:120, y:280, w:38, h:28, vy:0 };
+    score = 0; scoreEl.textContent = '0';
+    worldX = 0; accSpawn = 0; last = 0;
+    setBird(bird.x, bird.y, 0);
+    setMessage('Press <span class="kbd">Space</span> to flap · <span class="kbd">Enter</span> to start');
+  }
+  function start(){
+    if(state === State.PLAY) return;
+    state = State.PLAY;
+    accSpawn = SPAWN_MS*0.6; // first pipe comes a bit sooner
+    setMessage('');
+  }
+  function gameOver(){
+    if(state !== State.PLAY) return;
+    state = State.OVER;
+    setMessage('Game Over — press <span class="kbd">Enter</span> to restart');
+    stage.classList.add('flash');
+    setTimeout(()=>stage.classList.remove('flash'), 260);
+  }
+
+  function setMessage(html){ msgEl.innerHTML = html; }
+
+  /* ---------- Rendering helpers ---------- */
+  function setBird(x,y,angle){
+    birdEl.style.setProperty('--x', x+'px');
+    birdEl.style.setProperty('--y', y+'px');
+    birdEl.style.transform = `translate(${x}px, ${y}px) rotate(${angle}deg)`;
+  }
+  function createPipePair(x){
+    const pair = document.createElement('div');
+    pair.className = 'pair';
+    const top = document.createElement('div');
+    const bot = document.createElement('div');
+    top.className = 'pipe top';
+    bot.className = 'pipe bottom';
+    pair.appendChild(top); pair.appendChild(bot);
+    pipesLayer.appendChild(pair);
+    return { el:pair, topEl:top, botEl:bot, x, gapTop:260, passed:false };
+  }
+  function layoutPipe(pair){
+    const gapTop = pair.gapTop;         // y of gap top
+    const topH = Math.max(24, gapTop);  // ensure minimum visual
+    const gapBottom = gapTop + PIPE_GAP;
+    const bottomH = Math.max(24, (H - GROUND_H) - gapBottom);
+    pair.topEl.style.height = topH + 'px';
+    pair.topEl.style.width  = PIPE_W + 'px';
+    pair.botEl.style.height = bottomH + 'px';
+    pair.botEl.style.width  = PIPE_W + 'px';
+    pair.el.style.transform = `translateX(${pair.x}px)`;
+  }
+
+  /* ---------- Loop ---------- */
+  function tick(ts){
+    if(!last) last = ts;
+    const dt = Math.min(40, ts - last); // clamp big jumps
+    last = ts;
+
+    if(state !== State.OVER){
+      // Ground scroll parallax
+      worldX -= PIPE_SPEED * dt;
+      groundEl.style.backgroundPosition = `${worldX}px 0`;
+    }
+
+    if(state === State.PLAY){
+      // Physics
+      bird.vy += GRAVITY * dt;
+      bird.y += bird.vy * dt;
+      const angle = Math.max(-30, Math.min(70, bird.vy * 120)); // tilt by velocity
+      setBird(bird.x, bird.y, angle);
+
+      // Spawn pipes
+      accSpawn += dt;
+      if(accSpawn >= SPAWN_MS){
+        accSpawn = 0;
+        const centerMin = 140, centerMax = (H - GROUND_H) - 140;
+        const center = rand(centerMin, centerMax);
+        const pair = createPipePair(W + 10);
+        pair.gapTop = Math.round(center - PIPE_GAP/2);
+        layoutPipe(pair);
+        pipes.push(pair);
+      }
+
+      // Move & collide
+      for(let i=pipes.length-1; i>=0; i--){
+        const p = pipes[i];
+        p.x -= PIPE_SPEED * dt;
+        p.el.style.transform = `translateX(${p.x}px)`;
+        // scoring
+        if(!p.passed && p.x + PIPE_W < bird.x){
+          p.passed = true;
+          score++;
+          scoreEl.textContent = score;
+        }
+        // offscreen remove
+        if(p.x + PIPE_W < -40){
+          p.el.remove(); pipes.splice(i,1);
+        }
+      }
+
+      if(checkCollision()){
+        gameOver();
+      }
+    } else {
+      // READY: keep bird gently bobbing
+      if(state === State.READY){
+        const bob = Math.sin(ts/400)*0.6;
+        setBird(bird.x, bird.y + bob, bob*2);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  function checkCollision(){
+    // Bounds with ground/ceiling
+    if(bird.y <= 0) return true;
+    if(bird.y + bird.h >= H - GROUND_H) return true;
+
+    // Against pipes
+    for(const p of pipes){
+      const gapTop = p.gapTop;
+      const gapBottom = gapTop + PIPE_GAP;
+      const px1 = p.x, px2 = p.x + PIPE_W;
+      const bx1 = bird.x, bx2 = bird.x + bird.w;
+      const by1 = bird.y, by2 = bird.y + bird.h;
+
+      const overlapX = (bx2 > px1) && (bx1 < px2);
+      if(overlapX){
+        if(by1 < gapTop || by2 > gapBottom) return true;
+      }
+    }
+    return false;
+  }
+
+  /* ---------- Input ---------- */
+  window.addEventListener('keydown', e=>{
+    if(e.code === 'Space'){ e.preventDefault(); flap(); }
+    else if(e.code === 'Enter'){ e.preventDefault(); if(state===State.OVER) reset(); start(); }
+  }, {passive:false});
+
+  stage.addEventListener('pointerdown', ()=>{ if(state!==State.OVER) flap(); });
+
+  function flap(){
+    if(state === State.READY) start();
+    if(state === State.PLAY){
+      bird.vy = JUMP_VY;
+      // brief flash of message when first flap
+      if(msgEl.textContent) setMessage('');
+    }
+  }
+
+  /* ---------- Utils ---------- */
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+
+  /* ---------- Boot ---------- */
+  reset();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
